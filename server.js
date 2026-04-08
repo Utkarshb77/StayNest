@@ -1,9 +1,14 @@
+if (process.env.NODE_ENV != "production") {
+    require("dotenv").config();
+}
+
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 7700;
 const path = require('path');
 const mongoose = require('mongoose');
-const MONGO_URI = 'mongodb://localhost:27017/projectdb';
+const MongoStore = require('connect-mongo');
+const MONGO_URI = process.env.ATLASDB_URL || 'mongodb://localhost:27017/projectdb';
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
 const MyErrors = require('./utils/MyErrors.js');
@@ -25,8 +30,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 
+const store = MongoStore.create({
+    mongoUrl: MONGO_URI,
+    crypto: {
+        secret: process.env.SECRET || "mysafekey",
+    },
+    touchAfter: 24 * 3600,
+});
+
+store.on("error", (err) => {
+    console.log("ERROR in MONGO SESSION STORE", err);
+});
+
 const sessionOptions = {
-    secret:"mysafekey",
+    store,
+    secret: process.env.SECRET || "mysafekey",
     resave: false,
     saveUninitialized : true,
     cookie: {
